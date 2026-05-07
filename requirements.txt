@@ -1,0 +1,28 @@
+# Core GUI
+PySide6>=6.6.0
+
+# Audio analysis
+librosa>=0.10.1
+numpy>=1.24.0
+soundfile>=0.12.1
+
+# Image/video processing
+opencv-python>=4.8.0
+Pillow>=10.0.0
+imageio>=2.31.0
+imageio-ffmpeg>=0.4.9
+
+# FFmpeg python bindings (used for ffprobe / building command lines)
+ffmpeg-python>=0.2.0
+
+# System info
+psutil>=5.9.0
+
+# Optional / heavy dependencies
+# Whisper: enables auto-generated lyrics. Install manually if you want lyric features.
+#   pip install openai-whisper
+# WhisperX: enables word-level forced alignment (advanced karaoke).
+#   pip install whisperx
+# MoviePy is intentionally NOT a hard requirement: we render via FFmpeg pipe directly,
+# which is faster and gives real progress callbacks. Install if you want extra editing utilities:
+#   pip install moviepy
