@@ -1,4 +1,4 @@
-// Main entry — wires DOM ↔ AudioEngine, Visualizer, Lyrics, Background, Logo, Exporter.
+// Main entry — wires DOM ↔ AudioEngine, Visualizer, Lyrics, Background, Logo, Exporter, Transcribe.
 
 import { $, $$, formatTime, toast, QUALITY_PRESETS } from './utils.js';
 import { AudioEngine } from './audio.js';
@@ -7,6 +7,7 @@ import { LyricsRenderer, parseLRC, serializeLRC } from './lyrics.js';
 import { Background } from './background.js';
 import { Logo } from './logo.js';
 import { Exporter } from './exporter.js';
+import { transcribe, abortTranscription, linesToLRC } from './transcribe.js';
 
 const SAMPLE_LRC = `[ti:Spectrum Demo]
 [ar:Music Visualizer]
@@ -15,9 +16,10 @@ const SAMPLE_LRC = `[ti:Spectrum Demo]
 [00:08.00] Pilih mode visual: Bar, Circular, Waveform, atau Particle
 [00:12.00] Tambahkan background gambar atau video
 [00:16.00] Sinkronkan lirik LRC dengan musik
-[00:20.00] Pasang logo watermark di pojok layar
-[00:24.00] Lalu rekam jadi video musik karaokemu sendiri
-[00:28.00] Selamat berkarya! ✨`;
+[00:20.00] Atau pakai Auto-Generate untuk transkripsi otomatis
+[00:24.00] Pasang logo watermark di pojok layar
+[00:28.00] Lalu rekam jadi video musik karaokemu sendiri
+[00:32.00] Selamat berkarya! ✨`;
 
 // ---------- DOM refs ----------
 const audioEl = $('#audioEl');
@@ -28,6 +30,11 @@ const bgImage = $('#bgImage');
 const bgVideo = $('#bgVideo');
 const bgOverlay = $('#bgOverlay');
 const logoEl = $('#logoOverlay');
+const stageHint = $('#stageHint');
+const app = $('#app');
+
+// Track latest user-uploaded audio file (for transcription reuse).
+let currentAudioFile = null;
 
 // ---------- Engines ----------
 const audio = new AudioEngine(audioEl);
@@ -69,16 +76,14 @@ $$('.tab').forEach(btn => {
   });
 });
 
-// ---------- Panel toggle / mobile ----------
+// ---------- Panel toggle ----------
 $('#panelToggle').addEventListener('click', () => {
-  const p = $('#controlPanel');
-  if (window.innerWidth <= 900) p.classList.toggle('open');
-  else p.classList.toggle('collapsed');
+  if (window.innerWidth <= 900) app.classList.toggle('panel-open');
+  else app.classList.toggle('panel-collapsed');
 });
 $('#panelClose').addEventListener('click', () => {
-  const p = $('#controlPanel');
-  if (window.innerWidth <= 900) p.classList.remove('open');
-  else p.classList.add('collapsed');
+  if (window.innerWidth <= 900) app.classList.remove('panel-open');
+  else app.classList.add('panel-collapsed');
 });
 
 // ---------- Audio file ----------
@@ -88,12 +93,13 @@ $('#audioInput').addEventListener('change', async (e) => {
   await audio.ensureContext();
   if (audioEl.src) URL.revokeObjectURL(audioEl.src);
   audioEl.src = URL.createObjectURL(file);
+  currentAudioFile = file;
   $('#audioName').textContent = file.name;
   audioEl.load();
+  stageHint?.classList.add('hidden');
   toast(`Audio dimuat: ${file.name}`);
 });
 
-// ---------- Audio sliders ----------
 $('#volumeSlider').addEventListener('input', e => {
   const v = parseFloat(e.target.value);
   audio.setVolume(v);
@@ -102,7 +108,7 @@ $('#volumeSlider').addEventListener('input', e => {
 $('#sensitivitySlider').addEventListener('input', e => visualizer.setSensitivity(parseFloat(e.target.value)));
 $('#smoothingSlider').addEventListener('input', e => audio.setSmoothing(parseFloat(e.target.value)));
 
-// ---------- Visual controls ----------
+// ---------- Visual ----------
 $$('.mode-btn').forEach(b => b.addEventListener('click', () => {
   $$('.mode-btn').forEach(x => x.classList.remove('active'));
   b.classList.add('active');
@@ -133,7 +139,7 @@ $('#bgBrightness').addEventListener('input', e => background.setFilter('brightne
 $('#bgOpacity').addEventListener('input', e => background.setFilter('opacity', parseFloat(e.target.value)));
 $('#bgDark').addEventListener('input', e => background.setFilter('dark', parseFloat(e.target.value)));
 
-// ---------- Lyrics ----------
+// ---------- Lyrics: file/manual ----------
 $('#lrcInput').addEventListener('change', async (e) => {
   const f = e.target.files?.[0]; if (!f) return;
   const text = await f.text();
@@ -152,11 +158,10 @@ $('#lrcApplyBtn').addEventListener('click', () => {
   const text = $('#lrcEditor').value;
   const parsed = parseLRC(text);
   if (!parsed.length) {
-    // fallback: treat each non-empty line as a separate lyric, evenly distributed across the song
-    const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const lns = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const dur = audioEl.duration || 60;
-    const step = lines.length > 1 ? dur / lines.length : 0;
-    lyrics.setLines(lines.map((t, i) => ({ t: i * step, text: t })));
+    const step = lns.length > 1 ? dur / lns.length : 0;
+    lyrics.setLines(lns.map((t, i) => ({ t: i * step, text: t })));
     toast('Tidak ada timestamp — lirik dibagi rata berdasarkan durasi');
   } else {
     lyrics.setLines(parsed);
@@ -170,13 +175,11 @@ $('#lrcStampBtn').addEventListener('click', () => {
   const m = Math.floor(t / 60);
   const s = (t % 60).toFixed(2).padStart(5, '0');
   const stamp = `[${m.toString().padStart(2,'0')}:${s}] `;
-  // Insert stamp at the start of the current line.
   const start = ta.selectionStart;
   const before = ta.value.slice(0, start);
   const after = ta.value.slice(start);
   const lineStart = before.lastIndexOf('\n') + 1;
   ta.value = before.slice(0, lineStart) + stamp + before.slice(lineStart) + after;
-  // Move caret past the stamp.
   const newPos = lineStart + stamp.length;
   ta.focus();
   ta.setSelectionRange(newPos, newPos);
@@ -192,9 +195,90 @@ $('#lrcDownloadBtn').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 
+$('#lrcClearBtn').addEventListener('click', () => {
+  $('#lrcEditor').value = '';
+  lyrics.setLines([]);
+  toast('Lirik dibersihkan');
+});
+
 $('#lyricY').addEventListener('input', e => lyrics.setPositionPct(parseFloat(e.target.value)));
 $('#lyricSize').addEventListener('input', e => lyrics.setFontSize(parseFloat(e.target.value)));
 $('#lyricVisible').addEventListener('change', e => lyrics.setVisible(e.target.checked));
+
+// ---------- Lyrics: AUTO-GENERATE (Whisper) ----------
+const autoBtn = $('#autoLyricBtn');
+const autoCancel = $('#autoLyricCancelBtn');
+const autoBar = $('#autoLyricProgress');
+const autoStatus = $('#autoLyricStatus');
+const autoWrap = $('#autoLyricProgressWrap');
+let isTranscribing = false;
+
+function setAutoProgress(pct, message) {
+  autoWrap.hidden = false;
+  if (typeof pct === 'number') autoBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+  if (message) autoStatus.textContent = message;
+}
+
+autoBtn.addEventListener('click', async () => {
+  if (isTranscribing) return;
+  if (!currentAudioFile) {
+    toast('Upload audio terlebih dulu di tab Audio.');
+    return;
+  }
+  isTranscribing = true;
+  autoBtn.disabled = true;
+  autoCancel.disabled = false;
+  setAutoProgress(0, 'Bersiap…');
+  toast('Memulai auto-generate lirik. Pertama kali mungkin lama (download model).', 4000);
+
+  try {
+    const language = $('#autoLyricLang').value;
+    const model = $('#autoLyricModel').value;
+    const result = await transcribe(currentAudioFile, {
+      model,
+      language,
+      onProgress: ({ stage, message, progress }) => {
+        // Map stages to a global 0-100 bar.
+        let pct = 0;
+        if (stage === 'load')        pct = 0 + (progress || 0) * 0.55;
+        else if (stage === 'decode') pct = 60;
+        else if (stage === 'transcribe') pct = 65 + (progress || 0) * 0.30;
+        else if (stage === 'done')   pct = 100;
+        setAutoProgress(pct, message);
+      },
+    });
+
+    if (!result.lines.length) {
+      setAutoProgress(100, 'Selesai — tidak ada vokal terdeteksi.');
+      toast('Tidak ada vokal/teks yang terdeteksi di audio.');
+      return;
+    }
+    const lrcText = linesToLRC(result.lines);
+    $('#lrcEditor').value = lrcText;
+    lyrics.setLines(result.lines);
+    setAutoProgress(100, `Selesai: ${result.lines.length} baris diterapkan.`);
+    toast(`Lirik otomatis diterapkan (${result.lines.length} baris).`);
+  } catch (err) {
+    console.error(err);
+    if (String(err?.message || err).includes('Dibatalkan')) {
+      setAutoProgress(0, 'Dibatalkan.');
+      toast('Auto-generate dibatalkan.');
+    } else {
+      setAutoProgress(0, 'Gagal: ' + (err?.message || err));
+      toast('Auto-generate gagal: ' + (err?.message || err));
+    }
+  } finally {
+    isTranscribing = false;
+    autoBtn.disabled = false;
+    autoCancel.disabled = true;
+  }
+});
+
+autoCancel.addEventListener('click', () => {
+  if (!isTranscribing) return;
+  abortTranscription();
+  setAutoProgress(0, 'Membatalkan…');
+});
 
 // ---------- Logo ----------
 $('#logoInput').addEventListener('change', e => {
@@ -283,7 +367,6 @@ function frame() {
   visualizer.draw(data, energy);
   lyrics.update(audioEl.currentTime || 0);
 
-  // Progress bar
   if (!scrubbing && isFinite(audioEl.duration) && audioEl.duration > 0) {
     progress.value = ((audioEl.currentTime || 0) / audioEl.duration) * 1000;
     $('#timeCurrent').textContent = formatTime(audioEl.currentTime);
@@ -310,4 +393,4 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---------- Boot ----------
-toast('Klik panel kanan untuk mulai. Upload audio + (opsional) BG/lirik/logo.');
+toast('Selamat datang! Upload audio untuk memulai. Lirik bisa otomatis (tab Lirik).', 3500);

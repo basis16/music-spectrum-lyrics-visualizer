@@ -6,6 +6,7 @@ Dibangun murni dengan HTML + CSS + Vanilla JS (ES Modules), tanpa build step. Cu
 
 ## Fitur
 
+- **Layout split**: preview (stage) di kiri terpisah dari panel **Settings** di kanan — tidak overlay. Mobile otomatis jadi panel slide-in.
 - **Audio**: upload MP3 / WAV, kontrol volume, sensitivitas, smoothing.
 - **Spectrum analyzer real-time** dengan 4 mode:
   - Bar Spectrum (dengan refleksi mirror)
@@ -15,8 +16,11 @@ Dibangun murni dengan HTML + CSS + Vanilla JS (ES Modules), tanpa build step. Cu
 - 6 tema warna neon (Rainbow, Aurora, Sunset, Cyberpunk, Ocean, Mono).
 - Slider **glow**, **kualitas** (Low / Medium / High).
 - **Background**: upload gambar atau video, kontrol blur, brightness, opacity, dark overlay.
-- **Lirik LRC**: parsing `[mm:ss.xx]`, tampil active + prev + next dengan glow + fade animation.
-  - Editor lirik manual dengan tombol **Stamp** (atau tekan `T`) untuk timing real-time.
+- **Lirik LRC**:
+  - **Auto-Generate** dari audio menggunakan AI Whisper (berjalan langsung di browser via [@xenova/transformers](https://www.npmjs.com/package/@xenova/transformers)). Pilih bahasa + model Tiny/Base. Model di-download sekali (~75–145 MB) lalu di-cache browser. Hasil otomatis jadi LRC bertimestamp.
+  - Upload `.lrc` (parser `[mm:ss.xx]` + ekstensi multi-stamp).
+  - Editor manual dengan tombol **Stamp** (atau tekan `T`) untuk timing real-time.
+  - Tampil active + prev + next dengan glow + fade animation.
   - Slider posisi vertikal + ukuran font.
   - Unduh `.lrc`.
 - **Logo watermark**: upload PNG transparan, 5 posisi preset, slider ukuran/opacity/glow neon.
@@ -29,7 +33,10 @@ Dibangun murni dengan HTML + CSS + Vanilla JS (ES Modules), tanpa build step. Cu
 1. Buka aplikasi.
 2. Tab **Audio** → upload MP3/WAV.
 3. Tab **BG** → upload gambar atau video (opsional).
-4. Tab **Lirik** → upload `.lrc` atau klik **Contoh** lalu **Terapkan**.
+4. Tab **Lirik** → tiga pilihan:
+   - **Auto-Generate**: pilih bahasa + model, klik **Generate dari musik**. Tunggu model di-download (sekali saja) lalu transkripsi berjalan otomatis.
+   - **Upload `.lrc`**.
+   - **Editor manual** + tombol Stamp (`T`).
 5. Tab **Logo** → upload PNG (opsional).
 6. Tekan ▶ untuk memulai. Tekan ⛶ untuk fullscreen.
 7. Tab **Export** → klik **Mulai Rekam**, lalu **Stop & Simpan** untuk mengunduh video.
@@ -82,8 +89,16 @@ js/
   background.js   # bg image/video + filters
   logo.js         # logo overlay
   exporter.js     # MediaRecorder export (composite canvas)
+  transcribe.js   # Whisper auto-generate lyrics (lazy import dari CDN)
   utils.js        # helpers
 ```
+
+## Catatan auto-generate lirik
+
+- Pertama kali klik **Generate dari musik**, model Whisper akan di-download dari Hugging Face (~75 MB untuk Tiny, ~145 MB untuk Base) dan dicache di browser. Selanjutnya jauh lebih cepat.
+- Whisper berjalan **sepenuhnya di browser** — audio Anda tidak dikirim ke server manapun.
+- Untuk hasil terbaik gunakan audio dengan vokal yang jelas. Lagu dengan musik instrumental dominan mungkin tidak menghasilkan banyak teks.
+- Mendukung banyak bahasa (Indonesia, English, Malay, Japanese, Korean, Chinese, Spanish, French, German, Arabic, dll). Pilih `Auto-detect` jika ragu.
 
 ## Lisensi
 

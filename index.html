@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Music Spectrum Lyrics Visualizer</title>
-<meta name="description" content="Visualizer musik spectrum analyzer warna-warni dengan lirik LRC otomatis, background image/video, logo watermark, dan export video." />
+<meta name="description" content="Visualizer musik spectrum analyzer warna-warni dengan lirik LRC otomatis, auto-generate lirik dari audio (Whisper), background image/video, logo watermark, dan export video." />
 <link rel="stylesheet" href="css/styles.css" />
 <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🎵</text></svg>" />
 </head>
@@ -12,248 +12,281 @@
   <!-- Animated gradient bg shown when no media set -->
   <div id="ambientGradient" aria-hidden="true"></div>
 
-  <!-- Main stage that gets recorded -->
-  <main id="stage">
-    <div id="bgLayer">
-      <video id="bgVideo" muted playsinline loop></video>
-      <img id="bgImage" alt="" />
-      <div id="bgOverlay"></div>
-    </div>
-    <canvas id="visualCanvas"></canvas>
-    <div id="lyricsLayer">
-      <div class="lyric lyric-prev"></div>
-      <div class="lyric lyric-active"></div>
-      <div class="lyric lyric-next"></div>
-    </div>
-    <img id="logoOverlay" alt="logo" />
-    <div id="recIndicator" hidden>● REC</div>
-  </main>
+  <!-- Layout: split preview / settings -->
+  <div id="app">
 
-  <!-- Floating panel toggle (mobile) -->
-  <button id="panelToggle" type="button" aria-label="Toggle panel">
-    <span class="bar"></span><span class="bar"></span><span class="bar"></span>
-  </button>
+    <!-- LEFT: PREVIEW AREA -->
+    <section id="previewArea" aria-label="Preview">
+      <header id="previewHeader" class="glass">
+        <div class="brand">
+          <span class="logo-dot"></span>
+          <h1>Spectrum Lyrics<br/><small>Visualizer</small></h1>
+        </div>
+        <div class="preview-actions">
+          <button id="btnFullscreen" class="player-btn" type="button" aria-label="Fullscreen" title="Fullscreen (F)">⛶</button>
+          <button id="panelToggle" type="button" aria-label="Toggle settings" title="Toggle settings">
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          </button>
+        </div>
+      </header>
 
-  <!-- Control panel -->
-  <aside id="controlPanel" aria-label="Control panel">
-    <header class="panel-head">
-      <div class="brand">
-        <span class="logo-dot"></span>
-        <h1>Spectrum Lyrics<br/><small>Visualizer</small></h1>
+      <main id="stage" tabindex="0" aria-label="Stage preview (recordable)">
+        <div id="bgLayer">
+          <video id="bgVideo" muted playsinline loop></video>
+          <img id="bgImage" alt="" />
+          <div id="bgOverlay"></div>
+        </div>
+        <canvas id="visualCanvas"></canvas>
+        <div id="lyricsLayer">
+          <div class="lyric lyric-prev"></div>
+          <div class="lyric lyric-active"></div>
+          <div class="lyric lyric-next"></div>
+        </div>
+        <img id="logoOverlay" alt="logo" />
+        <div id="recIndicator" hidden>● REC</div>
+
+        <!-- Empty state hint -->
+        <div id="stageHint">
+          <h2>Belum ada audio</h2>
+          <p>Upload MP3/WAV di panel <strong>Audio</strong> untuk memulai.</p>
+        </div>
+      </main>
+
+      <div id="playerBar" class="glass">
+        <button id="btnPlay" class="player-btn" type="button" aria-label="Play" title="Play / Pause (Space)">▶</button>
+        <button id="btnPause" class="player-btn" type="button" aria-label="Pause">❚❚</button>
+        <button id="btnStop" class="player-btn" type="button" aria-label="Stop">■</button>
+        <span id="timeCurrent" class="time">0:00</span>
+        <input type="range" id="progressBar" min="0" max="1000" step="1" value="0" />
+        <span id="timeTotal" class="time">0:00</span>
+        <div class="vol">
+          <span aria-hidden="true">🔊</span>
+          <input type="range" id="volumeBar" min="0" max="1" step="0.01" value="0.85" />
+        </div>
       </div>
-      <button id="panelClose" type="button" aria-label="Close panel">✕</button>
-    </header>
+    </section>
 
-    <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="audio" role="tab">Audio</button>
-      <button class="tab" data-tab="visual" role="tab">Visual</button>
-      <button class="tab" data-tab="background" role="tab">BG</button>
-      <button class="tab" data-tab="lyrics" role="tab">Lirik</button>
-      <button class="tab" data-tab="logo" role="tab">Logo</button>
-      <button class="tab" data-tab="export" role="tab">Export</button>
-    </nav>
+    <!-- RIGHT: CONTROL PANEL -->
+    <aside id="controlPanel" aria-label="Settings panel">
+      <header class="panel-head">
+        <h2>Settings</h2>
+        <button id="panelClose" type="button" aria-label="Close panel">✕</button>
+      </header>
 
-    <div class="panel-body">
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="audio" role="tab">Audio</button>
+        <button class="tab" data-tab="visual" role="tab">Visual</button>
+        <button class="tab" data-tab="background" role="tab">BG</button>
+        <button class="tab" data-tab="lyrics" role="tab">Lirik</button>
+        <button class="tab" data-tab="logo" role="tab">Logo</button>
+        <button class="tab" data-tab="export" role="tab">Export</button>
+      </nav>
 
-      <!-- AUDIO TAB -->
-      <section class="tab-pane active" data-pane="audio">
-        <h2>Audio</h2>
-        <label class="upload">
-          <span>Upload MP3 / WAV</span>
-          <input type="file" id="audioInput" accept="audio/*" />
-        </label>
-        <p class="hint" id="audioName">Belum ada audio.</p>
+      <div class="panel-body">
 
-        <label class="row">
-          <span>Volume</span>
-          <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.85" />
-        </label>
+        <!-- AUDIO TAB -->
+        <section class="tab-pane active" data-pane="audio">
+          <h3>Audio</h3>
+          <label class="upload">
+            <span>Upload MP3 / WAV</span>
+            <input type="file" id="audioInput" accept="audio/*" />
+          </label>
+          <p class="hint" id="audioName">Belum ada audio.</p>
 
-        <label class="row">
-          <span>Sensitivitas</span>
-          <input type="range" id="sensitivitySlider" min="0.5" max="3" step="0.05" value="1.4" />
-        </label>
+          <label class="row">
+            <span>Volume</span>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.85" />
+          </label>
+          <label class="row">
+            <span>Sensitivitas</span>
+            <input type="range" id="sensitivitySlider" min="0.5" max="3" step="0.05" value="1.4" />
+          </label>
+          <label class="row">
+            <span>Smoothing</span>
+            <input type="range" id="smoothingSlider" min="0" max="0.95" step="0.01" value="0.78" />
+          </label>
+        </section>
 
-        <label class="row">
-          <span>Smoothing</span>
-          <input type="range" id="smoothingSlider" min="0" max="0.95" step="0.01" value="0.78" />
-        </label>
-      </section>
-
-      <!-- VISUAL TAB -->
-      <section class="tab-pane" data-pane="visual">
-        <h2>Visual</h2>
-        <div class="mode-grid">
-          <button class="mode-btn active" data-mode="bar">Bar Spectrum</button>
-          <button class="mode-btn" data-mode="circular">Circular</button>
-          <button class="mode-btn" data-mode="waveform">Waveform</button>
-          <button class="mode-btn" data-mode="particle">Particle Beat</button>
-        </div>
-
-        <label class="row">
-          <span>Tema warna</span>
-          <select id="colorTheme">
-            <option value="rainbow" selected>Neon Rainbow</option>
-            <option value="aurora">Aurora</option>
-            <option value="sunset">Sunset</option>
-            <option value="cyberpunk">Cyberpunk</option>
-            <option value="ocean">Ocean</option>
-            <option value="mono">Mono Neon</option>
-          </select>
-        </label>
-
-        <label class="row">
-          <span>Glow</span>
-          <input type="range" id="glowSlider" min="0" max="40" step="1" value="18" />
-        </label>
-
-        <label class="row">
-          <span>Kualitas</span>
-          <select id="qualitySelect">
-            <option value="low">Low</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-          </select>
-        </label>
-      </section>
-
-      <!-- BACKGROUND TAB -->
-      <section class="tab-pane" data-pane="background">
-        <h2>Background</h2>
-        <label class="upload">
-          <span>Upload Gambar</span>
-          <input type="file" id="bgImageInput" accept="image/*" />
-        </label>
-        <label class="upload">
-          <span>Upload Video</span>
-          <input type="file" id="bgVideoInput" accept="video/*" />
-        </label>
-        <button class="ghost" id="bgClearBtn" type="button">Hapus background</button>
-
-        <label class="row">
-          <span>Blur</span>
-          <input type="range" id="bgBlur" min="0" max="40" step="1" value="0" />
-        </label>
-        <label class="row">
-          <span>Brightness</span>
-          <input type="range" id="bgBrightness" min="0.1" max="2" step="0.05" value="1" />
-        </label>
-        <label class="row">
-          <span>Opacity</span>
-          <input type="range" id="bgOpacity" min="0" max="1" step="0.01" value="1" />
-        </label>
-        <label class="row">
-          <span>Dark Overlay</span>
-          <input type="range" id="bgDark" min="0" max="0.9" step="0.01" value="0.35" />
-        </label>
-      </section>
-
-      <!-- LYRICS TAB -->
-      <section class="tab-pane" data-pane="lyrics">
-        <h2>Lirik</h2>
-        <label class="upload">
-          <span>Upload .lrc</span>
-          <input type="file" id="lrcInput" accept=".lrc,text/plain" />
-        </label>
-
-        <details class="editor">
-          <summary>Editor lirik manual (LRC)</summary>
-          <p class="hint">Format: <code>[mm:ss.xx] teks lirik</code>. Klik <em>Stamp</em> saat lagu berjalan untuk memberi waktu pada baris kursor.</p>
-          <div class="editor-bar">
-            <button id="lrcStampBtn" class="ghost" type="button">Stamp [t]</button>
-            <button id="lrcApplyBtn" class="primary" type="button">Terapkan</button>
-            <button id="lrcSampleBtn" class="ghost" type="button">Contoh</button>
-            <button id="lrcDownloadBtn" class="ghost" type="button">Unduh .lrc</button>
+        <!-- VISUAL TAB -->
+        <section class="tab-pane" data-pane="visual">
+          <h3>Visual</h3>
+          <div class="mode-grid">
+            <button class="mode-btn active" data-mode="bar">Bar Spectrum</button>
+            <button class="mode-btn" data-mode="circular">Circular</button>
+            <button class="mode-btn" data-mode="waveform">Waveform</button>
+            <button class="mode-btn" data-mode="particle">Particle Beat</button>
           </div>
-          <textarea id="lrcEditor" rows="10" placeholder="[00:00.00] Mulai mengetik lirik di sini…"></textarea>
-        </details>
 
-        <label class="row">
-          <span>Posisi vertikal</span>
-          <input type="range" id="lyricY" min="10" max="90" step="1" value="62" />
-        </label>
-        <label class="row">
-          <span>Ukuran font</span>
-          <input type="range" id="lyricSize" min="20" max="120" step="1" value="56" />
-        </label>
-        <label class="row">
-          <span>Tampilkan lirik</span>
-          <input type="checkbox" id="lyricVisible" checked />
-        </label>
-      </section>
+          <label class="row">
+            <span>Tema warna</span>
+            <select id="colorTheme">
+              <option value="rainbow" selected>Neon Rainbow</option>
+              <option value="aurora">Aurora</option>
+              <option value="sunset">Sunset</option>
+              <option value="cyberpunk">Cyberpunk</option>
+              <option value="ocean">Ocean</option>
+              <option value="mono">Mono Neon</option>
+            </select>
+          </label>
+          <label class="row">
+            <span>Glow</span>
+            <input type="range" id="glowSlider" min="0" max="40" step="1" value="18" />
+          </label>
+          <label class="row">
+            <span>Kualitas</span>
+            <select id="qualitySelect">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+        </section>
 
-      <!-- LOGO TAB -->
-      <section class="tab-pane" data-pane="logo">
-        <h2>Logo</h2>
-        <label class="upload">
-          <span>Upload PNG transparan</span>
-          <input type="file" id="logoInput" accept="image/png,image/*" />
-        </label>
-        <button class="ghost" id="logoClearBtn" type="button">Hapus logo</button>
+        <!-- BACKGROUND TAB -->
+        <section class="tab-pane" data-pane="background">
+          <h3>Background</h3>
+          <label class="upload">
+            <span>Upload Gambar</span>
+            <input type="file" id="bgImageInput" accept="image/*" />
+          </label>
+          <label class="upload">
+            <span>Upload Video</span>
+            <input type="file" id="bgVideoInput" accept="video/*" />
+          </label>
+          <button class="ghost" id="bgClearBtn" type="button">Hapus background</button>
 
-        <label class="row">
-          <span>Posisi</span>
-          <select id="logoPos">
-            <option value="tl">Kiri atas</option>
-            <option value="tr" selected>Kanan atas</option>
-            <option value="bl">Kiri bawah</option>
-            <option value="br">Kanan bawah</option>
-            <option value="cc">Tengah</option>
-          </select>
-        </label>
-        <label class="row">
-          <span>Ukuran</span>
-          <input type="range" id="logoSize" min="40" max="320" step="1" value="120" />
-        </label>
-        <label class="row">
-          <span>Opacity</span>
-          <input type="range" id="logoOpacity" min="0" max="1" step="0.01" value="0.9" />
-        </label>
-        <label class="row">
-          <span>Glow neon</span>
-          <input type="range" id="logoGlow" min="0" max="40" step="1" value="14" />
-        </label>
-      </section>
+          <label class="row"><span>Blur</span>
+            <input type="range" id="bgBlur" min="0" max="40" step="1" value="0" /></label>
+          <label class="row"><span>Brightness</span>
+            <input type="range" id="bgBrightness" min="0.1" max="2" step="0.05" value="1" /></label>
+          <label class="row"><span>Opacity</span>
+            <input type="range" id="bgOpacity" min="0" max="1" step="0.01" value="1" /></label>
+          <label class="row"><span>Dark Overlay</span>
+            <input type="range" id="bgDark" min="0" max="0.9" step="0.01" value="0.35" /></label>
+        </section>
 
-      <!-- EXPORT TAB -->
-      <section class="tab-pane" data-pane="export">
-        <h2>Export Video</h2>
-        <p class="hint">Merekam stage (visualizer + background + lirik + logo) bersama audio menjadi file video. Pastikan audio sudah dimuat lalu klik <em>Mulai Rekam</em>; klik <em>Stop</em> untuk menyimpan.</p>
-        <div class="export-row">
-          <button id="exportStartBtn" class="primary" type="button">Mulai Rekam</button>
-          <button id="exportStopBtn" class="danger" type="button" disabled>Stop &amp; Simpan</button>
-        </div>
-        <label class="row">
-          <span>Format</span>
-          <select id="exportFormat">
-            <option value="auto" selected>Auto (browser default)</option>
-            <option value="webm">WebM (VP9)</option>
-            <option value="webm-vp8">WebM (VP8)</option>
-            <option value="mp4">MP4 (H.264)</option>
-          </select>
-        </label>
-        <p class="hint" id="exportStatus">Siap.</p>
-      </section>
-    </div>
+        <!-- LYRICS TAB -->
+        <section class="tab-pane" data-pane="lyrics">
+          <h3>Lirik</h3>
 
-    <footer class="panel-foot">
-      <small>Built with Web Audio API · MediaRecorder · Canvas 2D</small>
-    </footer>
-  </aside>
+          <!-- Auto-generate (Whisper) -->
+          <div class="auto-lyric">
+            <div class="auto-lyric-head">
+              <strong>✨ Auto-Generate dari Audio</strong>
+              <small>Pakai AI Whisper di browser (offline). Pertama kali akan unduh model.</small>
+            </div>
+            <label class="row">
+              <span>Bahasa</span>
+              <select id="autoLyricLang">
+                <option value="auto" selected>Auto-detect</option>
+                <option value="indonesian">Indonesia</option>
+                <option value="english">English</option>
+                <option value="malay">Melayu</option>
+                <option value="japanese">Japanese</option>
+                <option value="korean">Korean</option>
+                <option value="chinese">Chinese</option>
+                <option value="spanish">Spanish</option>
+                <option value="french">French</option>
+                <option value="german">German</option>
+                <option value="arabic">Arabic</option>
+              </select>
+            </label>
+            <label class="row">
+              <span>Model</span>
+              <select id="autoLyricModel">
+                <option value="Xenova/whisper-tiny" selected>Tiny — cepat (~75MB)</option>
+                <option value="Xenova/whisper-base">Base — lebih akurat (~145MB)</option>
+              </select>
+            </label>
+            <div class="export-row">
+              <button id="autoLyricBtn" class="primary" type="button">Generate dari musik</button>
+              <button id="autoLyricCancelBtn" class="ghost" type="button" disabled>Batal</button>
+            </div>
+            <div class="progress-wrap" hidden id="autoLyricProgressWrap">
+              <div class="progress"><div class="progress-bar" id="autoLyricProgress"></div></div>
+              <p class="hint" id="autoLyricStatus">Bersiap…</p>
+            </div>
+          </div>
 
-  <!-- Player bar -->
-  <div id="playerBar" class="glass">
-    <button id="btnPlay" class="player-btn" type="button" aria-label="Play">▶</button>
-    <button id="btnPause" class="player-btn" type="button" aria-label="Pause">❚❚</button>
-    <button id="btnStop" class="player-btn" type="button" aria-label="Stop">■</button>
-    <span id="timeCurrent" class="time">0:00</span>
-    <input type="range" id="progressBar" min="0" max="1000" step="1" value="0" />
-    <span id="timeTotal" class="time">0:00</span>
-    <div class="vol">
-      <span aria-hidden="true">🔊</span>
-      <input type="range" id="volumeBar" min="0" max="1" step="0.01" value="0.85" />
-    </div>
-    <button id="btnFullscreen" class="player-btn" type="button" aria-label="Fullscreen">⛶</button>
+          <hr class="sep" />
+
+          <label class="upload">
+            <span>Atau upload .lrc</span>
+            <input type="file" id="lrcInput" accept=".lrc,text/plain" />
+          </label>
+
+          <details class="editor">
+            <summary>Editor lirik manual (LRC)</summary>
+            <p class="hint">Format: <code>[mm:ss.xx] teks lirik</code>. Klik <em>Stamp</em> (atau <kbd>T</kbd>) saat lagu berjalan untuk memberi waktu pada baris kursor.</p>
+            <div class="editor-bar">
+              <button id="lrcStampBtn" class="ghost" type="button">Stamp [t]</button>
+              <button id="lrcApplyBtn" class="primary" type="button">Terapkan</button>
+              <button id="lrcSampleBtn" class="ghost" type="button">Contoh</button>
+              <button id="lrcDownloadBtn" class="ghost" type="button">Unduh .lrc</button>
+              <button id="lrcClearBtn" class="ghost" type="button">Bersihkan</button>
+            </div>
+            <textarea id="lrcEditor" rows="10" placeholder="[00:00.00] Mulai mengetik lirik di sini…"></textarea>
+          </details>
+
+          <label class="row"><span>Posisi vertikal</span>
+            <input type="range" id="lyricY" min="10" max="90" step="1" value="62" /></label>
+          <label class="row"><span>Ukuran font</span>
+            <input type="range" id="lyricSize" min="20" max="120" step="1" value="56" /></label>
+          <label class="row"><span>Tampilkan lirik</span>
+            <input type="checkbox" id="lyricVisible" checked /></label>
+        </section>
+
+        <!-- LOGO TAB -->
+        <section class="tab-pane" data-pane="logo">
+          <h3>Logo</h3>
+          <label class="upload">
+            <span>Upload PNG transparan</span>
+            <input type="file" id="logoInput" accept="image/png,image/*" />
+          </label>
+          <button class="ghost" id="logoClearBtn" type="button">Hapus logo</button>
+
+          <label class="row"><span>Posisi</span>
+            <select id="logoPos">
+              <option value="tl">Kiri atas</option>
+              <option value="tr" selected>Kanan atas</option>
+              <option value="bl">Kiri bawah</option>
+              <option value="br">Kanan bawah</option>
+              <option value="cc">Tengah</option>
+            </select>
+          </label>
+          <label class="row"><span>Ukuran</span>
+            <input type="range" id="logoSize" min="40" max="320" step="1" value="120" /></label>
+          <label class="row"><span>Opacity</span>
+            <input type="range" id="logoOpacity" min="0" max="1" step="0.01" value="0.9" /></label>
+          <label class="row"><span>Glow neon</span>
+            <input type="range" id="logoGlow" min="0" max="40" step="1" value="14" /></label>
+        </section>
+
+        <!-- EXPORT TAB -->
+        <section class="tab-pane" data-pane="export">
+          <h3>Export Video</h3>
+          <p class="hint">Merekam stage (visualizer + background + lirik + logo) bersama audio jadi file video. Pastikan audio sudah dimuat lalu klik <em>Mulai Rekam</em>; klik <em>Stop</em> untuk menyimpan.</p>
+          <div class="export-row">
+            <button id="exportStartBtn" class="primary" type="button">Mulai Rekam</button>
+            <button id="exportStopBtn" class="danger" type="button" disabled>Stop &amp; Simpan</button>
+          </div>
+          <label class="row"><span>Format</span>
+            <select id="exportFormat">
+              <option value="auto" selected>Auto (browser default)</option>
+              <option value="webm">WebM (VP9)</option>
+              <option value="webm-vp8">WebM (VP8)</option>
+              <option value="mp4">MP4 (H.264)</option>
+            </select>
+          </label>
+          <p class="hint" id="exportStatus">Siap.</p>
+        </section>
+      </div>
+
+      <footer class="panel-foot">
+        <small>Built with Web Audio API · MediaRecorder · Whisper</small>
+      </footer>
+    </aside>
+
   </div>
 
   <div id="toast" role="status" aria-live="polite"></div>
