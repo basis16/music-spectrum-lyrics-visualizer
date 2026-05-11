@@ -1,0 +1,170 @@
+/* Modern light theme for Music Spectrum Lyric Video Maker */
+
+* {
+    font-family: "Segoe UI", "Inter", "Arial", sans-serif;
+    color: #1f2733;
+}
+
+QMainWindow, QWidget {
+    background-color: #f6f7fb;
+}
+
+QStatusBar {
+    background-color: #ffffff;
+    border-top: 1px solid #e3e6ee;
+    color: #4a5468;
+}
+
+/* Sidebar */
+QListWidget#Sidebar {
+    background-color: #ffffff;
+    border: none;
+    border-right: 1px solid #e3e6ee;
+    padding: 12px 6px;
+    outline: none;
+}
+QListWidget#Sidebar::item {
+    padding: 12px 14px;
+    margin: 2px 6px;
+    border-radius: 10px;
+    color: #4a5468;
+    font-weight: 600;
+    font-size: 14px;
+}
+QListWidget#Sidebar::item:hover {
+    background-color: #eef1fa;
+    color: #2a55ff;
+}
+QListWidget#Sidebar::item:selected {
+    background-color: #2a55ff;
+    color: #ffffff;
+}
+
+/* Cards & panels */
+QFrame#Card {
+    background-color: #ffffff;
+    border: 1px solid #e3e6ee;
+    border-radius: 14px;
+}
+QGroupBox {
+    background-color: #ffffff;
+    border: 1px solid #e3e6ee;
+    border-radius: 14px;
+    margin-top: 18px;
+    padding-top: 18px;
+    font-weight: 600;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 16px;
+    top: 4px;
+    padding: 0 6px;
+    color: #2a55ff;
+    background-color: #ffffff;
+}
+
+/* Inputs */
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QTextEdit {
+    background-color: #ffffff;
+    border: 1px solid #d6dbe7;
+    border-radius: 8px;
+    padding: 6px 10px;
+    selection-background-color: #2a55ff;
+    selection-color: #ffffff;
+}
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus,
+QPlainTextEdit:focus, QTextEdit:focus {
+    border: 1px solid #2a55ff;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 22px;
+}
+
+QPushButton {
+    background-color: #2a55ff;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-weight: 600;
+}
+QPushButton:hover {
+    background-color: #1d44e2;
+}
+QPushButton:pressed {
+    background-color: #1738c2;
+}
+QPushButton:disabled {
+    background-color: #c2c8d8;
+    color: #ffffff;
+}
+QPushButton[role="secondary"] {
+    background-color: #ffffff;
+    color: #2a55ff;
+    border: 1px solid #d6dbe7;
+}
+QPushButton[role="secondary"]:hover {
+    background-color: #eef1fa;
+}
+QPushButton[role="danger"] {
+    background-color: #e64a4a;
+}
+
+/* Sliders */
+QSlider::groove:horizontal {
+    height: 6px;
+    background: #e3e6ee;
+    border-radius: 3px;
+}
+QSlider::handle:horizontal {
+    background: #2a55ff;
+    width: 16px;
+    height: 16px;
+    margin: -6px 0;
+    border-radius: 8px;
+}
+QSlider::sub-page:horizontal {
+    background: #2a55ff;
+    border-radius: 3px;
+}
+
+/* Progress bars */
+QProgressBar {
+    border: 1px solid #d6dbe7;
+    border-radius: 8px;
+    background-color: #ffffff;
+    text-align: center;
+    color: #1f2733;
+    height: 18px;
+}
+QProgressBar::chunk {
+    background-color: #2a55ff;
+    border-radius: 7px;
+}
+
+/* Tables / lists */
+QTableWidget, QTreeWidget {
+    background-color: #ffffff;
+    border: 1px solid #e3e6ee;
+    gridline-color: #eef1fa;
+    selection-background-color: #eef1fa;
+    selection-color: #1f2733;
+}
+QHeaderView::section {
+    background-color: #f0f3f9;
+    border: none;
+    border-bottom: 1px solid #d6dbe7;
+    padding: 6px 8px;
+    font-weight: 600;
+    color: #4a5468;
+}
+
+QPlainTextEdit#LogPanel {
+    background-color: #11151c;
+    color: #d3e1ff;
+    font-family: "Consolas", "Cascadia Mono", monospace;
+    border: 1px solid #1c2331;
+    border-radius: 12px;
+    padding: 8px;
+}
