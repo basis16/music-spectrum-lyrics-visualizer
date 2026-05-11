@@ -57,7 +57,7 @@ class PreviewWidget(QWidget):
 
         self.frame = QLabel(self)
         self.frame.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.frame.setStyleSheet("QLabel { background-color: #000; border-radius: 12px; }")
+        self.frame.setObjectName("PreviewFrame")
         self.frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.frame.setMinimumSize(360, 200)
 

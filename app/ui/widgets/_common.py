@@ -97,7 +97,7 @@ class ColorSwatch(QPushButton):
 
     def _update_style(self) -> None:
         self.setStyleSheet(
-            f"QPushButton {{ background-color: {self._hex}; border: 1px solid #d6dbe7;"
+            f"QPushButton {{ background-color: {self._hex}; border: 1px solid palette(mid);"
             f" border-radius: 6px; }}"
         )
 

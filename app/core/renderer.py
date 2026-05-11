@@ -650,7 +650,11 @@ class Renderer:
 
         # Background (image only here; video is streamed per-frame).
         bg_image = None
-        if not config.background_path or Path(config.background_path).suffix.lower() in IMAGE_EXTS or not config.background_path:
+        bg_ext = (Path(config.background_path).suffix.lower()
+                  if config.background_path else "")
+        if not config.background_path or bg_ext not in VIDEO_EXTS:
+            # For images or unknown formats, fall back to compose helper
+            # (it generates a gradient when the path is missing/unsupported).
             bg_image = _compose_image_background(
                 config.background_path, config.width, config.height,
                 config.background_fit,
@@ -711,10 +715,19 @@ class Renderer:
         bg_source: Optional[object] = None
         if (config.background_path and
                 Path(config.background_path).suffix.lower() in VIDEO_EXTS):
-            bg_source = _VideoBackground(
-                info.ffmpeg_path, config.background_path,
-                config.width, config.height, config.fps, fit=config.background_fit,
-            )
+            try:
+                bg_source = _VideoBackground(
+                    info.ffmpeg_path, config.background_path,
+                    config.width, config.height, config.fps,
+                    fit=config.background_fit,
+                )
+            except Exception as e:  # noqa: BLE001
+                log.warning("Video background failed (%s); using image fallback", e)
+                bg_source = None
+                if ctx.background is None:
+                    ctx.background = _compose_image_background(
+                        None, config.width, config.height, config.background_fit,
+                    )
 
         # Open ffmpeg encoder pipe.
         encoder_cmd = self._encoder_cmd(info.ffmpeg_path, config, out)
@@ -773,8 +786,15 @@ class Renderer:
                 proc.stderr.close()
         if rc != 0:
             err_text = stderr_tail.decode("utf-8", errors="ignore")[-1500:]
-            log.error("FFmpeg failed (rc=%s):\n%s", rc, err_text)
-            raise RuntimeError(f"FFmpeg failed (rc={rc}). See log for details.")
+            log.error("FFmpeg failed (rc=%s)\ncmd: %s\nstderr:\n%s",
+                      rc, " ".join(encoder_cmd), err_text)
+            short = err_text.strip().splitlines()[-1] if err_text.strip() else ""
+            if not short:
+                short = (
+                    "FFmpeg returned a non-zero exit code. "
+                    "See logs/app.log for full details."
+                )
+            raise RuntimeError(f"FFmpeg failed (rc={rc}): {short}")
 
         if on_progress:
             on_progress(1.0, f"Done: {out.name}")

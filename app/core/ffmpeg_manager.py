@@ -98,7 +98,9 @@ class FFmpegManager:
         encoders = self._probe_encoders(ffmpeg)
         log.info("FFmpeg detected: %s (%s)", ffmpeg, version or "unknown version")
         if encoders:
-            log.info("Available H.264 encoders: %s", ", ".join(encoders))
+            hw = [e for e in encoders if e in {"h264_nvenc", "h264_qsv", "h264_amf"}]
+            log.info("Video encoders detected: %d (hw: %s)",
+                     len(encoders), ", ".join(hw) or "none")
         return FFmpegInfo(ffmpeg, ffprobe, version, encoders)
 
     def _resolve_ffmpeg(self) -> Optional[str]:

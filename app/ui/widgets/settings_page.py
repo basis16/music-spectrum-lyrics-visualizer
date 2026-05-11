@@ -45,7 +45,7 @@ class SettingsPage(QWidget):
         )
         self.ffmpeg_status = QLabel("Checking FFmpeg...")
         self.ffmpeg_status.setWordWrap(True)
-        self.ffmpeg_status.setStyleSheet("QLabel { color: #4a5468; }")
+        self.ffmpeg_status.setProperty("role", "muted")
 
         self.btn_recheck = QPushButton("Recheck FFmpeg")
         self.btn_recheck.setProperty("role", "secondary")

@@ -44,7 +44,7 @@ LYRIC_PRESETS = [
 
 def _label(text: str) -> QLabel:
     lbl = QLabel(text)
-    lbl.setStyleSheet("QLabel { color: #4a5468; font-weight: 500; }")
+    lbl.setProperty("role", "muted")
     return lbl
 
 

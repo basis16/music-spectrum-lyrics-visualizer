@@ -94,7 +94,7 @@ class SingleRenderPage(QWidget):
 
         self.meta_label = QLabel("No audio selected.")
         self.meta_label.setWordWrap(True)
-        self.meta_label.setStyleSheet("QLabel { color: #4a5468; }")
+        self.meta_label.setProperty("role", "muted")
 
         meta_layout = QVBoxLayout()
         meta_layout.addWidget(self.meta_label)
@@ -129,7 +129,7 @@ class SingleRenderPage(QWidget):
         self.progress.setRange(0, 1000)
         self.progress.setValue(0)
         self.status = QLabel("Ready.")
-        self.status.setStyleSheet("QLabel { color: #4a5468; }")
+        self.status.setProperty("role", "muted")
 
         self.btn_render = QPushButton("Render")
         self.btn_cancel = QPushButton("Cancel")
