@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# App data
+logs/*.log
+logs/*.txt
+output/*.mp4
+output/*.mkv
+output/*.webm
+app/assets/ffmpeg/ffmpeg.exe
+app/assets/ffmpeg/ffprobe.exe
+app/assets/ffmpeg/
+.cache/
+
+# Settings
+config.json
